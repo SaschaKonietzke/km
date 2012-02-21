@@ -14,7 +14,8 @@ class KM
   @host      = 'trk.kissmetrics.com:80'
   @log_dir   = '/tmp'
   @to_stderr = true
-  @use_cron  = false
+  @async     = false
+  @log_only  = false
 
   class << self
     class IdentError < StandardError; end
@@ -25,7 +26,7 @@ class KM
         :host      => @host,
         :log_dir   => @log_dir,
         :to_stderr => @to_stderr,
-        :use_cron  => @use_cron,
+        :async     => @async,
         :env       => set_env,
         :log_only  => false
       }
@@ -35,7 +36,7 @@ class KM
         @key       = key
         @host      = options[:host]
         @log_dir   = options[:log_dir]
-        @use_cron  = options[:use_cron]
+        @async     = options[:async]
         @to_stderr = options[:to_stderr]
         @env       = options[:env]
         @log_only  = options[:log_only]
@@ -129,7 +130,7 @@ class KM
       @host      = 'trk.kissmetrics.com:80'
       @log_dir   = '/tmp'
       @to_stderr = true
-      @use_cron  = false
+      @async     = false
       @log_only  = false
     end
 
@@ -199,15 +200,11 @@ class KM
         query_arr <<  key_val.collect { |i| URI.escape i.to_s }.join('=')
       end
       query = '/' + type + '?' + query_arr.join('&')
-      if @use_cron
-        log_query(query)
+      
+      if @async
+        self.delay.send_or_log_query(query) # use delayed job
       else
-        begin
-          send_query(query)
-        rescue Exception => e
-          log_query(query)
-          log_error(e)
-        end
+        send_or_log_query(query)
       end
     end
 
@@ -226,6 +223,15 @@ class KM
         raise KMError.new("#{e} for host #{@host}")
       end
       log_sent(line)
+    end
+    
+    def send_or_log_query(line)
+      begin
+        send_query(line)
+      rescue Exception => e
+        log_query(line)
+        log_error(e)
+      end
     end
 
     def log_dir_writable?
