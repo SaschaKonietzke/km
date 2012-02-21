@@ -26,6 +26,7 @@ class KM
         :to_stderr => @to_stderr,
         :use_cron  => @use_cron,
         :env       => set_env,
+        :log_only  => false
       }
       options = default.merge(options)
 
@@ -36,6 +37,7 @@ class KM
         @use_cron  = options[:use_cron]
         @to_stderr = options[:to_stderr]
         @env       = options[:env]
+        @log_only  = options[:log_only]
         log_dir_writable?
       rescue Exception => e
         log_error(e)
@@ -208,7 +210,7 @@ class KM
     end
 
     def send_query(line)
-      if @env != 'production'
+      if @log_only
         log_sent(line)
         return
       end
